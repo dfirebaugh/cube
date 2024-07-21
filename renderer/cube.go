@@ -81,7 +81,14 @@ func (r *CubeRenderer) Render() {
 
 	r.mesher.Unbind()
 
-	// Drain events channel
+	r.drainEvents()
+}
+
+// drainEvents will do some action for any event caught in the events channel.
+// `subscribeToEvents` will push certain messages into the events channel which we
+// can then process on the main thread.
+// this is required because opengl wants certain functions to run on the main thread.
+func (r *CubeRenderer) drainEvents() {
 	for {
 		select {
 		case event := <-r.events:
