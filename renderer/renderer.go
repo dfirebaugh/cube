@@ -2,6 +2,7 @@ package renderer
 
 import (
 	"github.com/dfirebaugh/cube/pkg/message"
+	"github.com/dfirebaugh/cube/pkg/primitive"
 	"github.com/go-gl/mathgl/mgl32"
 )
 
@@ -21,8 +22,10 @@ type Renderer interface {
 }
 
 type Mesher interface {
-	CreateMesh()
+	CreateMesh(cubes []primitive.Cube)
 	Bind()
 	Unbind()
 	Draw()
+	GetMesh() ([]float32, []uint32)
+	String() string
 }

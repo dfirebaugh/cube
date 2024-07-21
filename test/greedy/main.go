@@ -24,23 +24,22 @@ func main() {
 		}()
 	})
 
-	cubeRenderer := renderer.NewMeshRenderer(renderer.NewCubeMesher())
-	e.AddRenderer(cubeRenderer)
+	meshRenderer := renderer.NewMeshRenderer(renderer.NewGreedyMesher())
+	e.AddRenderer(meshRenderer)
 
 	for x := 0; x < cubeSize; x++ {
 		for y := 0; y < cubeSize; y++ {
 			for z := 0; z < cubeSize; z++ {
-				cubeRenderer.AddCube(primitive.Cube{
-					X:     float32(x),
-					Y:     float32(y),
-					Z:     float32(z),
-					Size:  1.0,
-					Color: mgl32.Vec3{float32(x) / float32(cubeSize), float32(y) / float32(cubeSize), float32(z) / float32(cubeSize)},
-					// Color: mgl32.Vec3{float32(255), 0, 0},
+				meshRenderer.AddCube(primitive.Cube{
+					X:    float32(x),
+					Y:    float32(y),
+					Z:    float32(z),
+					Size: 1.0,
+					// Color: mgl32.Vec3{float32(x) / float32(cubeSize), float32(y) / float32(cubeSize), float32(z) / float32(cubeSize)},
+					Color: mgl32.Vec3{float32(255), 0, 0},
 				})
 			}
 		}
 	}
-
 	e.Run()
 }

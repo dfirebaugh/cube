@@ -107,6 +107,11 @@ func (e *Engine) SwapBuffers() {
 	glfw.PollEvents()
 }
 
+func (e Engine) ClearScreen() {
+	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+	gl.ClearColor(0.2, 0.3, 0.3, 1.0)
+}
+
 func (e *Engine) draw() {
 	for _, r := range e.renderers {
 		r.Render()
@@ -120,6 +125,7 @@ func (e *Engine) Run() {
 
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
+		e.ClearScreen()
 		e.draw()
 
 		e.SwapBuffers()

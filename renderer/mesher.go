@@ -1,25 +1,26 @@
 package renderer
 
 import (
-	"unsafe"
+	"fmt"
 
+	"github.com/dfirebaugh/cube/pkg/primitive"
 	"github.com/go-gl/gl/v3.3-core/gl"
 )
 
 type CubeMesher struct {
-	vao uint32
-	vbo uint32
-	ebo uint32
+	vao      uint32
+	vbo      uint32
+	vertices []float32
 }
 
 func NewCubeMesher() *CubeMesher {
-	m := &CubeMesher{}
-	m.createCube()
-	return m
+	return &CubeMesher{}
 }
 
-func (m *CubeMesher) CreateMesh() {
-	m.createCube()
+func (m *CubeMesher) CreateMesh(cubes []primitive.Cube) {
+	m.vertices = nil
+	m.createCube(cubes)
+	m.setupBuffers()
 }
 
 func (m *CubeMesher) Bind() {
@@ -31,43 +32,84 @@ func (m *CubeMesher) Unbind() {
 }
 
 func (m *CubeMesher) Draw() {
-	gl.DrawElements(gl.TRIANGLES, 36, gl.UNSIGNED_INT, unsafe.Pointer(nil))
+	gl.DrawArrays(gl.TRIANGLES, 0, int32(len(m.vertices)/6))
 }
 
-func (m *CubeMesher) createCube() {
-	vertices := []float32{
-		// Positions        // Colors
-		-0.5, -0.5, -0.5, 1.0, 0.0, 0.0, // 0
-		0.5, -0.5, -0.5, 0.0, 1.0, 0.0, // 1
-		0.5, 0.5, -0.5, 0.0, 0.0, 1.0, // 2
-		-0.5, 0.5, -0.5, 1.0, 1.0, 0.0, // 3
-		-0.5, -0.5, 0.5, 1.0, 0.0, 1.0, // 4
-		0.5, -0.5, 0.5, 0.0, 1.0, 1.0, // 5
-		0.5, 0.5, 0.5, 1.0, 1.0, 1.0, // 6
-		-0.5, 0.5, 0.5, 0.0, 0.0, 0.0, // 7
-	}
+func (m *CubeMesher) GetMesh() ([]float32, []uint32) {
+	return m.vertices, nil
+}
 
-	indices := []uint32{
-		0, 1, 2, 2, 3, 0, // Back face
-		4, 5, 6, 6, 7, 4, // Front face
-		0, 1, 5, 5, 4, 0, // Bottom face
-		2, 3, 7, 7, 6, 2, // Top face
-		0, 3, 7, 7, 4, 0, // Left face
-		1, 2, 6, 6, 5, 1, // Right face
-	}
+func (m *CubeMesher) String() string {
+	return fmt.Sprintf("Vertices: %v", m.vertices)
+}
 
-	var vao, vbo, ebo uint32
+func (m *CubeMesher) createCube(cubes []primitive.Cube) {
+	for _, cube := range cubes {
+		color := cube.Color
+		// Cube vertices positions and colors
+		cubeVertices := []float32{
+			// Front face
+			cube.X - cube.Size/2, cube.Y - cube.Size/2, cube.Z + cube.Size/2, color[0], color[1], color[2],
+			cube.X + cube.Size/2, cube.Y - cube.Size/2, cube.Z + cube.Size/2, color[0], color[1], color[2],
+			cube.X + cube.Size/2, cube.Y + cube.Size/2, cube.Z + cube.Size/2, color[0], color[1], color[2],
+			cube.X + cube.Size/2, cube.Y + cube.Size/2, cube.Z + cube.Size/2, color[0], color[1], color[2],
+			cube.X - cube.Size/2, cube.Y + cube.Size/2, cube.Z + cube.Size/2, color[0], color[1], color[2],
+			cube.X - cube.Size/2, cube.Y - cube.Size/2, cube.Z + cube.Size/2, color[0], color[1], color[2],
+
+			// Back face
+			cube.X - cube.Size/2, cube.Y - cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
+			cube.X + cube.Size/2, cube.Y - cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
+			cube.X + cube.Size/2, cube.Y + cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
+			cube.X + cube.Size/2, cube.Y + cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
+			cube.X - cube.Size/2, cube.Y + cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
+			cube.X - cube.Size/2, cube.Y - cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
+
+			// Left face
+			cube.X - cube.Size/2, cube.Y + cube.Size/2, cube.Z + cube.Size/2, color[0], color[1], color[2],
+			cube.X - cube.Size/2, cube.Y + cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
+			cube.X - cube.Size/2, cube.Y - cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
+			cube.X - cube.Size/2, cube.Y - cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
+			cube.X - cube.Size/2, cube.Y - cube.Size/2, cube.Z + cube.Size/2, color[0], color[1], color[2],
+			cube.X - cube.Size/2, cube.Y + cube.Size/2, cube.Z + cube.Size/2, color[0], color[1], color[2],
+
+			// Right face
+			cube.X + cube.Size/2, cube.Y + cube.Size/2, cube.Z + cube.Size/2, color[0], color[1], color[2],
+			cube.X + cube.Size/2, cube.Y + cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
+			cube.X + cube.Size/2, cube.Y - cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
+			cube.X + cube.Size/2, cube.Y - cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
+			cube.X + cube.Size/2, cube.Y - cube.Size/2, cube.Z + cube.Size/2, color[0], color[1], color[2],
+			cube.X + cube.Size/2, cube.Y + cube.Size/2, cube.Z + cube.Size/2, color[0], color[1], color[2],
+
+			// Top face
+			cube.X - cube.Size/2, cube.Y + cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
+			cube.X + cube.Size/2, cube.Y + cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
+			cube.X + cube.Size/2, cube.Y + cube.Size/2, cube.Z + cube.Size/2, color[0], color[1], color[2],
+			cube.X + cube.Size/2, cube.Y + cube.Size/2, cube.Z + cube.Size/2, color[0], color[1], color[2],
+			cube.X - cube.Size/2, cube.Y + cube.Size/2, cube.Z + cube.Size/2, color[0], color[1], color[2],
+			cube.X - cube.Size/2, cube.Y + cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
+
+			// Bottom face
+			cube.X - cube.Size/2, cube.Y - cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
+			cube.X + cube.Size/2, cube.Y - cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
+			cube.X + cube.Size/2, cube.Y - cube.Size/2, cube.Z + cube.Size/2, color[0], color[1], color[2],
+			cube.X + cube.Size/2, cube.Y - cube.Size/2, cube.Z + cube.Size/2, color[0], color[1], color[2],
+			cube.X - cube.Size/2, cube.Y - cube.Size/2, cube.Z + cube.Size/2, color[0], color[1], color[2],
+			cube.X - cube.Size/2, cube.Y - cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
+		}
+
+		m.vertices = append(m.vertices, cubeVertices...)
+	}
+}
+
+func (m *CubeMesher) setupBuffers() {
+	var vao, vbo uint32
 	gl.GenVertexArrays(1, &vao)
 	gl.GenBuffers(1, &vbo)
-	gl.GenBuffers(1, &ebo)
 
 	gl.BindVertexArray(vao)
 
 	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-	gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*4, gl.Ptr(vertices), gl.STATIC_DRAW)
-
-	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo)
-	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, len(indices)*4, gl.Ptr(indices), gl.STATIC_DRAW)
+	gl.BufferData(gl.ARRAY_BUFFER, len(m.vertices)*4, gl.Ptr(m.vertices), gl.STATIC_DRAW)
 
 	gl.VertexAttribPointerWithOffset(0, 3, gl.FLOAT, false, 6*4, 0)
 	gl.EnableVertexAttribArray(0)
@@ -77,5 +119,4 @@ func (m *CubeMesher) createCube() {
 
 	m.vao = vao
 	m.vbo = vbo
-	m.ebo = ebo
 }

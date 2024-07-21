@@ -9,7 +9,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type CubeRenderer struct {
+type MeshRenderer struct {
 	program   uint32
 	cubes     []primitive.Cube
 	wireframe bool
@@ -18,12 +18,14 @@ type CubeRenderer struct {
 	bus       message.MessageBus
 	events    chan string
 	mesher    Mesher
+	meshDirty bool
 }
 
-func NewCubeRenderer(mesher Mesher) *CubeRenderer {
-	renderer := &CubeRenderer{
-		events: make(chan string),
-		mesher: mesher,
+func NewMeshRenderer(mesher Mesher) *MeshRenderer {
+	renderer := &MeshRenderer{
+		events:    make(chan string),
+		mesher:    mesher,
+		meshDirty: true,
 	}
 	vertexShaderSource, err := shader.ShaderFS.ReadFile("cube_vertex_shader.glsl")
 	if err != nil {
@@ -43,24 +45,25 @@ func NewCubeRenderer(mesher Mesher) *CubeRenderer {
 	return renderer
 }
 
-func (r *CubeRenderer) SetCamera(camera Camera) {
+func (r *MeshRenderer) SetCamera(camera Camera) {
 	r.camera = camera
 }
 
-func (r *CubeRenderer) SetWindow(window Window) {
+func (r *MeshRenderer) SetWindow(window Window) {
 	r.window = window
 }
 
-func (r *CubeRenderer) SetMessageBus(m message.MessageBus) {
+func (r *MeshRenderer) SetMessageBus(m message.MessageBus) {
 	r.bus = m
 	go r.subscribeToEvents()
 }
 
-func (r *CubeRenderer) AddCube(cube primitive.Cube) {
+func (r *MeshRenderer) AddCube(cube primitive.Cube) {
 	r.cubes = append(r.cubes, cube)
+	r.meshDirty = true
 }
 
-func (r *CubeRenderer) ToggleWireframe() {
+func (r *MeshRenderer) ToggleWireframe() {
 	r.wireframe = !r.wireframe
 	if r.wireframe {
 		gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
@@ -70,25 +73,44 @@ func (r *CubeRenderer) ToggleWireframe() {
 	checkGLError("ToggleWireframe")
 }
 
-func (r *CubeRenderer) Render() {
-	gl.Enable(gl.DEPTH_TEST)
-	gl.UseProgram(r.program)
-	r.mesher.Bind()
-
-	for _, cube := range r.cubes {
-		r.DrawCube(cube.X, cube.Y, cube.Z, cube.Size, cube.Color)
+func (r *MeshRenderer) Render() {
+	if r.meshDirty {
+		r.mesher.CreateMesh(r.cubes)
+		r.meshDirty = false
 	}
 
+	gl.Enable(gl.DEPTH_TEST)
+	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+	gl.UseProgram(r.program)
+	checkGLError("UseProgram")
+	r.mesher.Bind()
+	checkGLError("BindMesh")
+
+	r.SetShaderUniforms()
+
+	r.mesher.Draw()
+	checkGLError("DrawMesh")
+
 	r.mesher.Unbind()
+	checkGLError("UnbindMesh")
 
 	r.drainEvents()
 }
 
-// drainEvents will do some action for any event caught in the events channel.
-// `subscribeToEvents` will push certain messages into the events channel which we
-// can then process on the main thread.
-// this is required because opengl wants certain functions to run on the main thread.
-func (r *CubeRenderer) drainEvents() {
+func (r *MeshRenderer) SetShaderUniforms() {
+	width, height := r.window.GetSize()
+	view := r.camera.GetViewMatrix()
+	projection := mgl32.Perspective(mgl32.DegToRad(45), float32(width)/float32(height), 0.1, 100.0)
+
+	viewLoc := gl.GetUniformLocation(r.program, gl.Str("view\x00"))
+	projLoc := gl.GetUniformLocation(r.program, gl.Str("projection\x00"))
+
+	gl.UniformMatrix4fv(viewLoc, 1, false, &view[0])
+	gl.UniformMatrix4fv(projLoc, 1, false, &projection[0])
+	checkGLError("SetShaderUniforms")
+}
+
+func (r *MeshRenderer) drainEvents() {
 	for {
 		select {
 		case event := <-r.events:
@@ -101,31 +123,9 @@ func (r *CubeRenderer) drainEvents() {
 	}
 }
 
-func (r *CubeRenderer) DrawCube(x, y, z, size float32, color mgl32.Vec3) {
-	r.mesher.Bind()
-
-	model := mgl32.Translate3D(x, y, z).Mul4(mgl32.Scale3D(size, size, size))
-	width, height := r.window.GetSize()
-	view := r.camera.GetViewMatrix()
-	projection := mgl32.Perspective(mgl32.DegToRad(45), float32(width)/float32(height), 0.1, 100.0)
-
-	modelLoc := gl.GetUniformLocation(r.program, gl.Str("model\x00"))
-	viewLoc := gl.GetUniformLocation(r.program, gl.Str("view\x00"))
-	projLoc := gl.GetUniformLocation(r.program, gl.Str("projection\x00"))
-	colorLoc := gl.GetUniformLocation(r.program, gl.Str("inputColor\x00"))
-
-	gl.UniformMatrix4fv(modelLoc, 1, false, &model[0])
-	gl.UniformMatrix4fv(viewLoc, 1, false, &view[0])
-	gl.UniformMatrix4fv(projLoc, 1, false, &projection[0])
-	gl.Uniform3fv(colorLoc, 1, &color[0])
-
-	r.mesher.Draw()
-	r.mesher.Unbind()
-}
-
-func (r *CubeRenderer) subscribeToEvents() {
+func (r *MeshRenderer) subscribeToEvents() {
 	if r.bus == nil {
-		logrus.Println("MessageBus not set for CubeRenderer")
+		logrus.Println("MessageBus not set for MeshRenderer")
 		return
 	}
 
@@ -143,11 +143,5 @@ func (r *CubeRenderer) subscribeToEvents() {
 			}
 		default:
 		}
-	}
-}
-
-func checkGLError(location string) {
-	if err := gl.GetError(); err != 0 {
-		logrus.Errorf("OpenGL error at %s: %d\n", location, err)
 	}
 }
