@@ -164,8 +164,6 @@ func (m *GreedyMesher) createGreedyMesh(cubes []primitive.Cube) {
 
 	m.vertices = vertices
 	m.indices = indices
-	fmt.Printf("Vertices: %v\n", m.vertices)
-	fmt.Printf("Indices: %v\n", m.indices)
 }
 
 func (m *GreedyMesher) setupBuffers() {
