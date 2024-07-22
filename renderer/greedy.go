@@ -141,8 +141,8 @@ func (m *GreedyMesher) createGreedyMesh(cubes []primitive.Cube) {
 
 						idx := uint32(len(vertices)/6 - 4)
 						indices = append(indices,
-							idx+3, idx+1, idx+2,
-							idx+1, idx, idx+2,
+							idx, idx+1, idx+2,
+							idx+1, idx+3, idx+2,
 						)
 
 						for l := 0; l < h; l++ {
