@@ -4,13 +4,12 @@ import (
 	"math"
 
 	"github.com/dfirebaugh/cube/pkg/message"
+	"github.com/go-gl/glfw/v3.3/glfw"
 	"github.com/go-gl/mathgl/mgl32"
+	"github.com/sirupsen/logrus"
 )
 
-var (
-	cameraInstance *Camera
-	Mode           CameraMode
-)
+var Mode CameraMode
 
 type CameraMode int
 
@@ -21,24 +20,27 @@ const (
 )
 
 func init() {
-	cameraInstance = NewCamera()
 	Mode = FirstPerson
 }
 
 type Camera struct {
+	window    *glfw.Window
 	position  mgl32.Vec3
 	direction mgl32.Vec3
 	up        mgl32.Vec3
 	right     mgl32.Vec3
+	fov       float32
 	Yaw       float32
 	Pitch     float32
 	Distance  float32
 }
 
-func NewCamera() *Camera {
+func NewCamera(window *glfw.Window) *Camera {
 	return &Camera{
+		window:    window,
+		fov:       45.0,
 		position:  mgl32.Vec3{0, 0, 0},
-		direction: mgl32.Vec3{0, 0, -1},
+		direction: mgl32.Vec3{0, 0, 0},
 		up:        mgl32.Vec3{0, 1, 0},
 		right:     mgl32.Vec3{1, 0, 0},
 		Yaw:       -90.0, // Set initial yaw to -90.0 to look forward
@@ -47,29 +49,33 @@ func NewCamera() *Camera {
 	}
 }
 
+func (c *Camera) GetPosition() mgl32.Vec3 {
+	return c.position
+}
+
 func (c *Camera) SetPosition(x, y, z float32) {
 	c.position = mgl32.Vec3{x, y, z}
+}
+
+func (c *Camera) GetDirection() mgl32.Vec3 {
+	return c.direction
 }
 
 func (c *Camera) SetDirection(direction mgl32.Vec3) {
 	c.direction = direction
 }
 
-func CameraInstance() *Camera {
-	return cameraInstance
+func (c *Camera) UpdatePosition(dx, dy, dz float32) {
+	c.position = c.position.Add(mgl32.Vec3{dx, dy, dz})
 }
 
-func UpdatePosition(dx, dy, dz float32) {
-	cameraInstance.position = cameraInstance.position.Add(mgl32.Vec3{dx, dy, dz})
-}
-
-func Move(dx, dy, dz float32) {
+func (c *Camera) Move(dx, dy, dz float32) {
 	if Mode == FirstPerson {
-		cameraInstance.position = cameraInstance.position.Add(cameraInstance.direction.Mul(dz))
-		cameraInstance.position = cameraInstance.position.Add(cameraInstance.right.Mul(dx))
-		cameraInstance.position = cameraInstance.position.Add(cameraInstance.up.Mul(dy))
+		c.position = c.position.Add(c.direction.Mul(dz))
+		c.position = c.position.Add(c.right.Mul(dx))
+		c.position = c.position.Add(c.up.Mul(dy))
 	} else {
-		UpdatePosition(dx, dy, dz)
+		c.UpdatePosition(dx, dy, dz)
 	}
 }
 
@@ -99,6 +105,13 @@ func (c *Camera) Right() mgl32.Vec3 {
 
 func (c *Camera) GetViewMatrix() mgl32.Mat4 {
 	return mgl32.LookAtV(c.position, c.position.Add(c.direction), c.up)
+}
+
+func (c *Camera) GetProjectionMatrix() mgl32.Mat4 {
+	windowWidth, windowHeight := c.window.GetSize()
+	aspectRatio := float32(windowWidth) / float32(windowHeight)
+	logrus.Infof("Window size: (%d, %d), Aspect ratio: %f", windowWidth, windowHeight, aspectRatio)
+	return mgl32.Perspective(mgl32.DegToRad(c.fov), aspectRatio, 0.1, 100.0)
 }
 
 func (c *Camera) ProcessMouseMovement(xOffset, yOffset float32, constrainPitch bool) {
@@ -132,17 +145,17 @@ func (c *Camera) updateCameraVectors() {
 	c.up = c.right.Cross(c.direction).Normalize()
 }
 
-func ListenForInputEvents(broker message.MessageBus) {
+func (c *Camera) ListenForInputEvents(broker message.MessageBus) {
 	sub := broker.Subscribe()
 	go func() {
 		for msg := range sub {
 			switch msg.GetTopic() {
 			case "CameraMove":
 				payload := msg.GetPayload().([3]float32)
-				Move(payload[0], payload[1], payload[2])
+				c.Move(payload[0], payload[1], payload[2])
 			case "MouseMovement":
 				payload := msg.GetPayload().([2]float32)
-				cameraInstance.ProcessMouseMovement(payload[0], payload[1], true)
+				c.ProcessMouseMovement(payload[0], payload[1], true)
 			}
 		}
 	}()

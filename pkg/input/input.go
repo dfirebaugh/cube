@@ -1,6 +1,7 @@
 package input
 
 import (
+	"github.com/dfirebaugh/cube/pkg/component"
 	"github.com/dfirebaugh/cube/pkg/message"
 	"github.com/go-gl/glfw/v3.3/glfw"
 	"github.com/sirupsen/logrus"
@@ -12,13 +13,27 @@ var (
 	lastY              float64
 	firstMouse         = true
 	keyStates          = make(map[glfw.Key]glfw.Action)
+	mouseCaptured      bool
 )
+
+func Init(window *glfw.Window, broker message.MessageBus) {
+	window.SetMouseButtonCallback(func(window *glfw.Window, button glfw.MouseButton, action glfw.Action, mod glfw.ModifierKey) {
+		handleMouseClick(window, broker, button, action, mod)
+		if button == glfw.MouseButtonLeft && action == glfw.Press {
+			mouseCaptured = true
+			window.SetInputMode(glfw.CursorMode, glfw.CursorDisabled)
+		}
+	})
+}
 
 func Update(window *glfw.Window, broker message.MessageBus) {
 	handleMovement(window, broker)
 	handleVerticalMovement(window, broker, 0.1)
-	handleMouseMovement(window, broker)
+	if mouseCaptured {
+		handleMouseMovement(window, broker)
+	}
 	toggleWireframeMode(window, broker)
+	handleClose(window, broker)
 
 	updateKeyStates(window)
 }
@@ -69,6 +84,18 @@ func handleMovement(window *glfw.Window, broker message.MessageBus) {
 	}
 }
 
+func handleMouseClick(window *glfw.Window, broker message.MessageBus, button glfw.MouseButton, action glfw.Action, mod glfw.ModifierKey) {
+	if action == glfw.Press {
+		x, y := window.GetCursorPos()
+		coords := component.Position{X: float32(x), Y: float32(y)}
+		broker.Publish(message.Message{
+			Topic:     "LeftClick",
+			Requestor: "input",
+			Payload:   coords,
+		})
+	}
+}
+
 func handleMouseMovement(window *glfw.Window, broker message.MessageBus) {
 	x, y := window.GetCursorPos()
 
@@ -105,8 +132,19 @@ func toggleWireframeMode(window *glfw.Window, broker message.MessageBus) {
 		Requestor: "input",
 		Payload:   nil,
 	})
-	logrus.Infoln("Publishing ToggleWireframe event")
+	logrus.Traceln("Publishing ToggleWireframe event")
 	broker.Publish(event)
+}
+
+func handleClose(window *glfw.Window, broker message.MessageBus) {
+	if !IsButtonJustPressed(window, glfw.KeyEscape) {
+		return
+	}
+
+	broker.Publish(message.Message{
+		Topic:     "RequestClose",
+		Requestor: "input",
+	})
 }
 
 func handleVerticalMovement(window *glfw.Window, broker message.MessageBus, zIncrement float32) {

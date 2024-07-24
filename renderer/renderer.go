@@ -8,6 +8,9 @@ import (
 
 type Camera interface {
 	GetViewMatrix() mgl32.Mat4
+	GetProjectionMatrix() mgl32.Mat4
+	GetPosition() mgl32.Vec3
+	GetDirection() mgl32.Vec3
 }
 
 type Window interface {

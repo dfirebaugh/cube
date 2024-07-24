@@ -11,11 +11,12 @@ import (
 )
 
 const (
-	cubeSize = 10
+	cubeSize = 40
 )
 
 func main() {
 	logrus.SetLevel(logrus.TraceLevel)
+
 	e := engine.New(func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -26,19 +27,16 @@ func main() {
 
 	cubeRenderer := renderer.NewMeshRenderer(renderer.NewCubeMesher())
 	e.AddRenderer(cubeRenderer)
-
-	for x := 0; x < cubeSize; x++ {
-		for y := 0; y < cubeSize; y++ {
-			for z := 0; z < cubeSize; z++ {
-				cube := block.TestBlock()
-				cube.X = float32(x)
-				cube.Y = float32(y)
-				cube.Z = float32(z)
-				cube.Color = component.Color{float32(x) / float32(cubeSize), float32(y) / float32(cubeSize), float32(z) / float32(cubeSize)}
-				cubeRenderer.AddCube(cube)
-			}
-		}
+	cube := block.TestBlock()
+	cube.Size = 1
+	cube.Color = component.Color{float32(0) / float32(cubeSize), float32(255) / float32(cubeSize), float32(0) / float32(cubeSize)}
+	cube.Position = component.Position{
+		X: float32(1),
+		Y: 0,
+		Z: 0,
 	}
+
+	cubeRenderer.AddCube(cube)
 
 	e.Run()
 }

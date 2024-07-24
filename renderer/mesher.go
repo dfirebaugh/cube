@@ -32,7 +32,10 @@ func (m *CubeMesher) Unbind() {
 }
 
 func (m *CubeMesher) Draw() {
+	m.EnableBackfaceCulling()
+	gl.BindVertexArray(m.vao)
 	gl.DrawArrays(gl.TRIANGLES, 0, int32(len(m.vertices)/6))
+	gl.BindVertexArray(0)
 }
 
 func (m *CubeMesher) GetMesh() ([]float32, []uint32) {
@@ -48,7 +51,7 @@ func (m *CubeMesher) createCube(cubes []primitive.Cube) {
 		color := cube.Color
 		// Cube vertices positions and colors
 		cubeVertices := []float32{
-			// Front face
+			// Front face (CCW order)
 			cube.X - cube.Size/2, cube.Y - cube.Size/2, cube.Z + cube.Size/2, color[0], color[1], color[2],
 			cube.X + cube.Size/2, cube.Y - cube.Size/2, cube.Z + cube.Size/2, color[0], color[1], color[2],
 			cube.X + cube.Size/2, cube.Y + cube.Size/2, cube.Z + cube.Size/2, color[0], color[1], color[2],
@@ -56,39 +59,39 @@ func (m *CubeMesher) createCube(cubes []primitive.Cube) {
 			cube.X - cube.Size/2, cube.Y + cube.Size/2, cube.Z + cube.Size/2, color[0], color[1], color[2],
 			cube.X - cube.Size/2, cube.Y - cube.Size/2, cube.Z + cube.Size/2, color[0], color[1], color[2],
 
-			// Back face
+			// Back face (CCW order)
 			cube.X - cube.Size/2, cube.Y - cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
-			cube.X + cube.Size/2, cube.Y - cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
-			cube.X + cube.Size/2, cube.Y + cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
-			cube.X + cube.Size/2, cube.Y + cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
 			cube.X - cube.Size/2, cube.Y + cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
+			cube.X + cube.Size/2, cube.Y + cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
+			cube.X + cube.Size/2, cube.Y + cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
+			cube.X + cube.Size/2, cube.Y - cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
 			cube.X - cube.Size/2, cube.Y - cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
 
-			// Left face
-			cube.X - cube.Size/2, cube.Y + cube.Size/2, cube.Z + cube.Size/2, color[0], color[1], color[2],
-			cube.X - cube.Size/2, cube.Y + cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
-			cube.X - cube.Size/2, cube.Y - cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
+			// Left face (CCW order)
 			cube.X - cube.Size/2, cube.Y - cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
 			cube.X - cube.Size/2, cube.Y - cube.Size/2, cube.Z + cube.Size/2, color[0], color[1], color[2],
 			cube.X - cube.Size/2, cube.Y + cube.Size/2, cube.Z + cube.Size/2, color[0], color[1], color[2],
-
-			// Right face
-			cube.X + cube.Size/2, cube.Y + cube.Size/2, cube.Z + cube.Size/2, color[0], color[1], color[2],
-			cube.X + cube.Size/2, cube.Y + cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
-			cube.X + cube.Size/2, cube.Y - cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
-			cube.X + cube.Size/2, cube.Y - cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
-			cube.X + cube.Size/2, cube.Y - cube.Size/2, cube.Z + cube.Size/2, color[0], color[1], color[2],
-			cube.X + cube.Size/2, cube.Y + cube.Size/2, cube.Z + cube.Size/2, color[0], color[1], color[2],
-
-			// Top face
-			cube.X - cube.Size/2, cube.Y + cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
-			cube.X + cube.Size/2, cube.Y + cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
-			cube.X + cube.Size/2, cube.Y + cube.Size/2, cube.Z + cube.Size/2, color[0], color[1], color[2],
-			cube.X + cube.Size/2, cube.Y + cube.Size/2, cube.Z + cube.Size/2, color[0], color[1], color[2],
 			cube.X - cube.Size/2, cube.Y + cube.Size/2, cube.Z + cube.Size/2, color[0], color[1], color[2],
 			cube.X - cube.Size/2, cube.Y + cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
+			cube.X - cube.Size/2, cube.Y - cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
 
-			// Bottom face
+			// Right face (CCW order)
+			cube.X + cube.Size/2, cube.Y - cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
+			cube.X + cube.Size/2, cube.Y + cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
+			cube.X + cube.Size/2, cube.Y + cube.Size/2, cube.Z + cube.Size/2, color[0], color[1], color[2],
+			cube.X + cube.Size/2, cube.Y + cube.Size/2, cube.Z + cube.Size/2, color[0], color[1], color[2],
+			cube.X + cube.Size/2, cube.Y - cube.Size/2, cube.Z + cube.Size/2, color[0], color[1], color[2],
+			cube.X + cube.Size/2, cube.Y - cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
+
+			// Top face (CCW order)
+			cube.X - cube.Size/2, cube.Y + cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
+			cube.X - cube.Size/2, cube.Y + cube.Size/2, cube.Z + cube.Size/2, color[0], color[1], color[2],
+			cube.X + cube.Size/2, cube.Y + cube.Size/2, cube.Z + cube.Size/2, color[0], color[1], color[2],
+			cube.X + cube.Size/2, cube.Y + cube.Size/2, cube.Z + cube.Size/2, color[0], color[1], color[2],
+			cube.X + cube.Size/2, cube.Y + cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
+			cube.X - cube.Size/2, cube.Y + cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
+
+			// Bottom face (CCW order)
 			cube.X - cube.Size/2, cube.Y - cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
 			cube.X + cube.Size/2, cube.Y - cube.Size/2, cube.Z - cube.Size/2, color[0], color[1], color[2],
 			cube.X + cube.Size/2, cube.Y - cube.Size/2, cube.Z + cube.Size/2, color[0], color[1], color[2],
@@ -119,4 +122,10 @@ func (m *CubeMesher) setupBuffers() {
 
 	m.vao = vao
 	m.vbo = vbo
+}
+
+func (m *CubeMesher) EnableBackfaceCulling() {
+	gl.Enable(gl.CULL_FACE)
+	gl.CullFace(gl.BACK)
+	gl.FrontFace(gl.CCW)
 }

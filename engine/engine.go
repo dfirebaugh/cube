@@ -40,15 +40,24 @@ func New(startup func()) *Engine {
 		log.Fatalln("failed to initialize glfw:", err)
 	}
 
-	glfw.WindowHint(glfw.Resizable, glfw.False)
+	glfw.WindowHint(glfw.Resizable, glfw.True)
 	glfw.WindowHint(glfw.ContextVersionMajor, 3)
 	glfw.WindowHint(glfw.ContextVersionMinor, 3)
 	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
 
-	window, err := glfw.CreateWindow(800, 450, "cube", nil, nil)
+	monitor := glfw.GetPrimaryMonitor()
+	videoMode := monitor.GetVideoMode()
+
+	windowWidth := 800
+	windowHeight := 450
+	windowX := (videoMode.Width - windowWidth) / 2
+	windowY := (videoMode.Height - windowHeight) / 2
+
+	window, err := glfw.CreateWindow(windowWidth, windowHeight, "cube", nil, nil)
 	if err != nil {
 		log.Fatalln("failed to create window:", err)
 	}
+	window.SetPos(windowX, windowY)
 	window.MakeContextCurrent()
 	if err := gl.Init(); err != nil {
 		log.Fatalln("failed to initialize gl:", err)
@@ -60,17 +69,25 @@ func New(startup func()) *Engine {
 	engine := &Engine{
 		player: player.New(-5, 0, 15, broker.NewBroker()),
 		window: window,
-		camera: camera.NewCamera(),
+		camera: camera.NewCamera(window),
 		bus:    broker.NewBroker(),
 	}
 
-	camera.ListenForInputEvents(engine.bus)
-	camera.UpdatePosition(-2, 0, 10)
+	input.Init(window, engine.bus)
+
+	window.SetFramebufferSizeCallback(engine.framebufferSizeCallback)
+
+	engine.camera.ListenForInputEvents(engine.bus)
+	engine.camera.UpdatePosition(-2, 0, 10)
 
 	go engine.bus.Start()
 	go engine.subscribeToEvents()
 
 	return engine
+}
+
+func (e *Engine) framebufferSizeCallback(window *glfw.Window, width int, height int) {
+	gl.Viewport(0, 0, int32(width), int32(height))
 }
 
 func (e *Engine) close() {
@@ -79,7 +96,7 @@ func (e *Engine) close() {
 }
 
 func (e *Engine) AddRenderer(renderer renderer.Renderer) {
-	renderer.SetCamera(camera.CameraInstance())
+	renderer.SetCamera(e.camera)
 	renderer.SetWindow(e.window)
 	renderer.SetMessageBus(e.bus)
 	e.renderers = append(e.renderers, renderer)
@@ -147,9 +164,9 @@ func (e *Engine) subscribeToEvents() {
 			if !ok {
 				return
 			}
-
-			logrus.Infof("Received Message %s\n", m.GetTopic())
-		default:
+			if m.GetTopic() == "RequestClose" {
+				e.window.SetShouldClose(true)
+			}
 		}
 	}
 }
